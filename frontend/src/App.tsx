@@ -4,7 +4,7 @@ import { Info } from 'lucide-react';
 import './index.css';
 
 // Using standard fetch, no axios needed
-const API_GATEWAY_URL = 'http://localhost:3001/api/allocate';
+const API_GATEWAY_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/allocate';
 
 type RiskCapacity = 'Conservative' | 'Moderate' | 'Aggressive';
 
