@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Info } from 'lucide-react';
 import './index.css';
@@ -236,7 +236,7 @@ function App() {
                         animationDuration={1500}
                         animationEasing="ease-out"
                       >
-                        {pieData.map((entry, index) => (
+                        {pieData.map((_entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
