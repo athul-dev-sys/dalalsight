@@ -24,10 +24,14 @@ def fetch_historical_data(tickers: List[str] = NIFTY_TICKERS, period: str = "5y"
     
     # yf.download returns a MultiIndex column DataFrame if multiple tickers are passed
     # We only care about 'Adj Close' or 'Close'
-    if 'Adj Close' in data:
-        prices = data['Adj Close']
+    if isinstance(data.columns, pd.MultiIndex):
+        if 'Adj Close' in data.columns.levels[0]:
+            prices = data['Adj Close']
+        else:
+            prices = data['Close']
     else:
-        prices = data['Close']
+        # Fallback if it didn't return a MultiIndex (sometimes happens with yfinance updates)
+        prices = data
         
     prices = prices.dropna(how='all')
     prices.ffill(inplace=True)
