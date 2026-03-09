@@ -59,8 +59,8 @@ def fetch_historical_data(tickers: List[str] = NIFTY_TICKERS, period: str = "5y"
             prices[t] = 100 * np.exp(np.cumsum(returns))
     
     # Fill any remaining interspersed NaNs
-    prices.fillna(method='bfill', inplace=True)
-    prices.fillna(method='ffill', inplace=True)
+    prices.bfill(inplace=True)
+    prices.ffill(inplace=True)
     
     return prices
 
