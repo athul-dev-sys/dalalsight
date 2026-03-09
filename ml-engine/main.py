@@ -39,19 +39,44 @@ print("Loading historical data for Covariance matrix calculation...")
 HISTORICAL_PRICES = fetch_historical_data(tickers=NIFTY_TICKERS, period="1y")
 print("Startup complete.")
 
+# Map industries back to tickers
+INDUSTRY_MAP = {
+    "IT": ["TCS.NS", "INFY.NS"],
+    "Finance": ["HDFCBANK.NS", "ICICIBANK.NS"],
+    "Energy": ["RELIANCE.NS"],
+    "Healthcare": ["SUNPHARMA.NS"],
+    "Manufacturing": ["TATASTEEL.NS"],
+    "FMCG": ["HINDUNILVR.NS"]
+}
+
 @app.get("/health")
 def health_check():
     return {"status": "ML Engine is running"}
 
 @app.post("/allocate")
 def allocate_portfolio(req: AllocationRequest):
-    # In a fully integrated version, we'd filter NIFTY_TICKERS by req.selected_industries.
-    # For now, we use all tickers to ensure the covariance matrix matches.
+    # Determine the pool of tickers based on user's selected industries
+    selected_tickers = []
+    if not req.selected_industries:
+        # Fallback to all if none selected
+        selected_tickers = list(MOCK_EXPECTED_RETURNS.keys())
+    else:
+        for industry in req.selected_industries:
+            if industry in INDUSTRY_MAP:
+                selected_tickers.extend(INDUSTRY_MAP[industry])
+                
+    # Further fallback if industries didn't match anything
+    if not selected_tickers:
+        selected_tickers = list(MOCK_EXPECTED_RETURNS.keys())
+        
+    # Filter constraints to only the selected pool
+    filtered_returns = {k: MOCK_EXPECTED_RETURNS[k] for k in selected_tickers if k in MOCK_EXPECTED_RETURNS}
+    filtered_prices = HISTORICAL_PRICES[selected_tickers]
     
-    # Initialize the allocator
+    # Initialize the allocator with ONLY the filtered pool
     allocator = ModernPortfolioTheoryAllocator(
-        expected_returns=MOCK_EXPECTED_RETURNS, 
-        historical_prices=HISTORICAL_PRICES,
+        expected_returns=filtered_returns, 
+        historical_prices=filtered_prices,
         risk_free_rate=0.07
     )
     
