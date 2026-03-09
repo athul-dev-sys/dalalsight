@@ -30,12 +30,20 @@ def fetch_historical_data(tickers: List[str] = NIFTY_TICKERS, period: str = "5y"
         else:
             prices = data['Close']
     else:
-        # Fallback if it didn't return a MultiIndex (sometimes happens with yfinance updates)
+        # Fallback if it didn't return a MultiIndex
         prices = data
+        
+    # CRITICAL FIX: If yfinance hits a rate limit for a specific ticker (e.g. SUNPHARMA.NS),
+    # it completely omits that column from the returned DataFrame, causing a KeyError downstream.
+    # We must explicitly reindex the DataFrame to guarantee all requested tickers are present.
+    prices = prices.reindex(columns=tickers)
         
     prices = prices.dropna(how='all')
     prices.ffill(inplace=True)
     prices.bfill(inplace=True)
+    
+    # Fill any remaining NaNs (for completely missing tickers) with 0 to prevent downstream crashes
+    prices.fillna(0, inplace=True)
     
     return prices
 
