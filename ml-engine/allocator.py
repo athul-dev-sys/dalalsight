@@ -4,11 +4,6 @@ from scipy.optimize import minimize
 
 class ModernPortfolioTheoryAllocator:
     def __init__(self, expected_returns: dict, historical_prices: pd.DataFrame, risk_free_rate: float = 0.07):
-        """
-        expected_returns: Dictionary { 'TICKER': expected_annualized_return_float }
-        historical_prices: DataFrame with Tickers as columns and prices as rows.
-        risk_free_rate: 7% default as per specification.
-        """
         # Ensure we only work with the tickers requested
         self.tickers = list(expected_returns.keys())
         self.expected_returns = np.array([expected_returns[t] for t in self.tickers])
@@ -18,6 +13,7 @@ class ModernPortfolioTheoryAllocator:
         # Annualized covariance matrix (assumes 252 trading days)
         self.cov_matrix = returns.cov() * 252
         self.risk_free_rate = risk_free_rate
+        self.historical_prices = historical_prices
 
     def _portfolio_annualised_performance(self, weights):
         returns = np.sum(self.expected_returns * weights)
@@ -74,3 +70,27 @@ class ModernPortfolioTheoryAllocator:
 
         allocation = {self.tickers[i]: float(weights[i]) for i in range(num_assets)}
         return allocation
+
+    def get_historical_performance(self, weights_dict):
+        """
+        Takes the dictionary of {ticker: weight} and returns the cumulative
+        value of a $100 investment over the historical period.
+        """
+        returns = self.historical_prices[self.tickers].pct_change().dropna()
+        weights_array = np.array([weights_dict.get(t, 0) for t in self.tickers])
+        
+        # Calculate daily portfolio returns
+        daily_portfolio_returns = returns.dot(weights_array)
+        
+        # Calculate cumulative returns starting at 100
+        cumulative_returns = 100 * (1 + daily_portfolio_returns).cumprod()
+        
+        # Format as list of dicts for frontend
+        perf_data = []
+        for date, value in cumulative_returns.items():
+            perf_data.append({
+                "date": date.strftime("%Y-%m-%d"),
+                "value": round(value, 2)
+            })
+            
+        return perf_data

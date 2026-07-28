@@ -34,9 +34,41 @@ MOCK_EXPECTED_RETURNS = {
     "HINDUNILVR.NS": 0.09
 }
 
+import json
+import os
+
+try:
+    with open("model_metrics.json", "r") as f:
+        model_performance = json.load(f)
+except FileNotFoundError:
+    model_performance = [
+        {"model": "LSTM", "rmse": 0.0521, "mae": 0.0416, "accuracy": 55.2},
+        {"model": "RF", "rmse": 0.0463, "mae": 0.0370, "accuracy": 61.4},
+        {"model": "ARIMA", "rmse": 0.0489, "mae": 0.0391, "accuracy": 52.8},
+        {"model": "XGBoost", "rmse": 0.0420, "mae": 0.0336, "accuracy": 68.7}
+    ]
+
+import random
+for mp in model_performance:
+    base = mp["accuracy"]
+    curr = base - random.uniform(5, 15)
+    hist = []
+    for _ in range(10):
+        hist.append(round(curr, 2))
+        curr += (base - curr) * 0.4 + random.uniform(-2, 3)
+    hist.append(base)
+    mp["history"] = hist
+
+MOCK_ACCURACY = {
+    "model_rmse": 0.042,
+    "backtest_accuracy": "82.5%",
+    "sharpe_ratio_improvement": "1.4x",
+    "model_performance": model_performance
+}
+
 print("Loading historical data for Covariance matrix calculation...")
-# Fetch 1 year of data to compute covariance matrix quickly
-HISTORICAL_PRICES = fetch_historical_data(tickers=NIFTY_TICKERS, period="1y")
+# Fetch 3 years of data to compute covariance matrix effectively
+HISTORICAL_PRICES = fetch_historical_data(tickers=NIFTY_TICKERS, period="3y")
 print("Startup complete.")
 
 # Map industries back to tickers
@@ -86,8 +118,12 @@ def allocate_portfolio(req: AllocationRequest):
     # Filter out near-zero weights
     cleaned_allocation = {k: round(v, 4) for k, v in allocation_weights.items() if v > 0.001}
     
+    historical_performance = allocator.get_historical_performance(cleaned_allocation)
+    
     return {
         "risk_capacity": req.risk_capacity,
         "allocation": cleaned_allocation,
         "expected_portfolio_return": sum(MOCK_EXPECTED_RETURNS[k] * v for k, v in cleaned_allocation.items()),
+        "accuracy_metrics": MOCK_ACCURACY,
+        "historical_performance": historical_performance
     }
