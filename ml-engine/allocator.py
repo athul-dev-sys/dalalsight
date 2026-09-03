@@ -38,23 +38,22 @@ class ModernPortfolioTheoryAllocator:
         
         # Constraints: Weights sum to 1
         constraints = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})
+
+        min_required_max = 1.0 / num_assets
         
         # Bounds logic mapped to user's risk capacity
         if risk_capacity.lower() == 'conservative':
-            # Strict diversification, no asset holds more than 20%
-            bound = (0.0, 0.20)
-            bounds = tuple(bound for asset in range(num_assets))
+            target_max = 0.20
         elif risk_capacity.lower() == 'moderate':
-            # Standard long-only, max 40% per asset
-            bound = (0.0, 0.40)
-            bounds = tuple(bound for asset in range(num_assets))
+            target_max = 0.40
         elif risk_capacity.lower() == 'aggressive':
-            # Relaxed bounds, allow up to 80% per asset
-            bound = (0.0, 0.80)
-            bounds = tuple(bound for asset in range(num_assets))
+            target_max = 0.80
         else:
-            bound = (0.0, 1.0)
-            bounds = tuple(bound for asset in range(num_assets))
+            target_max = 1.0
+
+        max_bound = max(target_max, min_required_max)
+        bound = (0.0, max_bound)
+        bounds = tuple(bound for _ in range(num_assets))
 
         # Initial guess - equal distribution
         initial_guess = num_assets * [1. / num_assets,]

@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, LineChart, Line, XAxis, YAxis, BarChart, Bar, CartesianGrid } from 'recharts';
 import { Info } from 'lucide-react';
 import './index.css';
+import { computeClientSideAllocation } from './utils/mptAllocator';
 
-// Using standard fetch, no axios needed
+// API Gateway URL fallback for local or custom backend
 const API_GATEWAY_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/allocate';
 
 type RiskCapacity = 'Conservative' | 'Moderate' | 'Aggressive';
@@ -12,6 +13,7 @@ interface AllocationResult {
   risk_capacity: string;
   allocation: Record<string, number>;
   expected_portfolio_return: number;
+  is_fallback?: boolean;
   accuracy_metrics?: {
     model_rmse: number;
     backtest_accuracy: string;
@@ -58,6 +60,9 @@ function App() {
     if (!risk || selectedIndustries.length === 0) return;
 
     setLoading(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+
     try {
       const res = await fetch(API_GATEWAY_URL, {
         method: 'POST',
@@ -65,16 +70,23 @@ function App() {
         body: JSON.stringify({
           risk_capacity: risk,
           selected_industries: selectedIndustries
-        })
+        }),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
 
-      if (!res.ok) throw new Error('API Error');
+      if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
       const data = await res.json();
       setResult(data);
       setStep(3);
-    } catch (err) {
-      console.error(err);
-      alert('Failed to fetch allocation. Ensure ML Engine and API Gateway are running.');
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      console.warn('Backend unavailable (hosted Vercel mode or offline). Using client-side MPT optimizer fallback:', err.message);
+      
+      // Perform client-side Markowitz optimization fallback
+      const clientSideData = computeClientSideAllocation(risk, selectedIndustries);
+      setResult(clientSideData);
+      setStep(3);
     } finally {
       setLoading(false);
     }
@@ -201,6 +213,11 @@ function App() {
 
         {step === 3 && result && (
           <div className="glass-card allocation-results" style={{ animation: 'slideUp 0.5s ease-out' }}>
+            {result.is_fallback && (
+              <div className="educational-banner" style={{ background: 'rgba(255, 187, 40, 0.15)', border: '1px solid #FFBB28', color: '#FFBB28', marginBottom: '1.5rem', textAlign: 'center' }}>
+                ⚡ <strong>Resilient Standby Mode:</strong> ML Engine is offline or starting up. Serving estimated allocation.
+              </div>
+            )}
             <div className="tabs" style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginBottom: '2rem' }}>
               <button 
                 className={`btn ${activeTab === 'portfolio' ? '' : 'outline'}`}
